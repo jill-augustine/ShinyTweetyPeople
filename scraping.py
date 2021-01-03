@@ -1,5 +1,6 @@
 import os
 import json
+import time
 import requests
 import logging
 import logging.config
@@ -28,21 +29,26 @@ search_tweets = '2/tweets/search/recent'
 
 params = {
    'query' : '(new resolution) -is:retweet',
-   'tweet.fields' : 'id,text,lang,created_at,geo',
+   'tweet.fields' : 'conversation_id,created_at,entities,geo,id,lang,public_metrics,possibly_sensitive,source,text',
    'expansions' : 'geo.place_id',
-   'start_time' : '2021-01-01T12:22:20Z', # 1 ssecond later that the data collected in the previous scraping
    'max_results' : 100
 }
 
 # calling a (multi-page) query ------------------------------
-pages_to_search = 300
-logger.debug('Searching up to {} pages with the follow paramters: {}'.format(
-   pages_to_search, json.dumps(params, indent = 2)
-))
+# pages_to_search = 300
+# logger.debug('Searching up to {} pages with the follow paramters: {}'.format(
+#    pages_to_search, json.dumps(params, indent = 2)
+# ))
 pages_searched = 0
 data = []
 entire_history = []
-while pages_searched < pages_to_search :
+last_page = False
+while not last_page :
+   if (pages_searched % 350 == 0) and (pages_searched > 0):
+      for i in range(16,0,-1):
+         print('Sleeping: {} minutes left'.format(i))
+         time.sleep(60)
+   
    logger.debug('Searching Page #{}'.format(pages_searched+1))
    resp = requests.get(base+search_tweets, params = params, headers = headers)
    resp.raise_for_status()
@@ -56,6 +62,7 @@ while pages_searched < pages_to_search :
    if 'next_token' in meta.keys():
       params.update({'next_token' : meta['next_token']})
    else:
+      last_page = True
       print('Reached last page. Breaking loop.')
       break
    pages_searched += 1
