@@ -6,35 +6,37 @@ import glob
 files = np.sort(glob.glob('*data.json'))
 print('Number of JSON files found: {}'.format(len(files)))
 
-with open(files[-1], 'r') as f:
+with open('20210103141011_data.json', 'r') as f:
     data = eval(f.readline())
 
-# df = pd.DataFrame.from_records(data)
-# df = df.assign(created_at = pd.to_datetime(df.created_at))
-# df.created_at.describe(datetime_is_numeric = True)
+unnested = [dict(
+    retweet_count = d['public_metrics']['retweet_count'],
+    reply_count = d['public_metrics']['reply_count'],
+    like_count = d['public_metrics']['like_count'],
+    quote_count = d['public_metrics']['quote_count'],
+    lang = d['lang'],
+    source = d['source'],
+    possibly_sensitive = d['possibly_sensitive'],
+    text = d['text'],
+    created_at = d['created_at'],
+    ID = d['id'])
+    for d in data]
 
-# ---------------------------
-# Binding into 1 and saving unique tweets as text file.
-# skipping the first scraped file because this included retweets
+df = pd.DataFrame.from_records(unnested)
 
-d = pd.DataFrame(columns = ['created_at', 'text', 'lang', 'id', 'geo'])
-for i in range(1, len(files)):
-    file = files[i]
-    print(file)
-    with open(file, 'r') as f:
-        data = eval(f.readline())
+assert df.duplicated().sum() == 0, 'Dataframe contained duplicates!'
 
-    df = pd.DataFrame.from_records(data)
-    # leave created_at as a str because export to json is then smoother
-    d = d.append(df, ignore_index = True)
-
-
-no_dups = (d.drop_duplicates(subset = [col for col in d if col != 'geo'])
-            .reset_index(drop = True)
-)
-
-no_dups.to_json('all_joined.json', orient = 'records')
+df.to_json('20210103141011_tidy.json', orient = 'records')
 
 [d for d in no_dups.geo.dropna().to_list() if len(d) > 1 ]
 
 len(no_dups.geo.dropna().to_list())
+
+print(df.head(2).to_json(orient = 'records', lines=False))
+
+print('\n'.join([str(d) for d in data[:10]]))
+
+with open('20210103141011_tidy.json', 'r') as f:
+    one = f.readline()
+
+two = [one[0]]

@@ -1,11 +1,18 @@
 *token
+*bearer
+*app_key
+*app_secret
+*oauth_token
+*oauth_token_secret
+*secrets.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 
-# C extensions
+# C extensionsgit
+
 *.so
 
 # Distribution / packaging
