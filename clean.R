@@ -7,6 +7,7 @@ library(tictoc)
 library(ggplot2)
 library(tidyjson)
 library(plotly)
+library(textclean)
 
 replies_pattern <- '^(@\\w+\\s*)+'
 tag_pattern <- '@\\w+'
@@ -54,7 +55,7 @@ max(data$text_count) #280 !!! finally
 #     str_extract_all('&\\w+;') %>% 
 #     unlist() %>% unique()
 
-# getting supporting data on language codes ------------------------------------
+# language code data ------------------------------------
 
 language_codes_import <- readr::read_file('language-subtag-registry.txt')
 
@@ -81,3 +82,31 @@ toc()
 
 lang_info_df <- bind_rows(lang_info_list)
 
+# time zone data ---------------
+
+tz_import <- readr::read_delim('timezonenames.tsv', '\t', skip = 1)
+tz_import <- tz_import[c(25:14, 1:13),] # rearranging rows
+
+# emoji data ---------------
+
+emoji_data_raw <- readr::read_delim(file.path(getwd(),'emoji13-1','emoji-test.txt'),
+                                    delim = ';', skip = 35,
+                                    col_names = c('code','notes')) %>% 
+                    as_tibble() %>% 
+                    filter(!is.na(notes))
+
+emoji_data <- emoji_data_raw$notes %>% 
+    # spliting on # or ' Ex.x ' which splits in 3, then dropping first column of matrix
+    str_split_fixed('(#\\s)|(\\sE\\d{1,2}\\.\\d\\s)', n = 3) %>% 
+    as_tibble() %>% select(-V1)
+names(emoji_data) <- c('emoji','description')
+emoji_data <- emoji_data %>% mutate(ASCII = iconv(emoji, 'UTF-8','ASCII','byte'))
+
+# this has 4590 of the latest emojis
+emoji_DT <- data.table::data.table(x = emoji_data$ASCII, y = emoji_data$description)
+
+#ASCII_emoji_df <- lexicon::hash_emojis
+#ASCII_emoji_df$y <- 'jillemojisearch'
+
+#x <- "\U0001f497"
+#replace_emoji(x, emoji_DT)
