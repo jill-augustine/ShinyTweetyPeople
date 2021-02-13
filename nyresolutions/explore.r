@@ -83,24 +83,30 @@ data %>%
 
 # Time of tweet --------------------
 
-breaks <- seq(ymd_hms('2020-12-31 12:00:00'), ymd_hms('2021-01-01 11:00:00'), 3600)
-labels <- tz_import$Name[2:nrow(tz_import)]
+#breaks <- seq(ymd_hms('2020-12-31 12:00:00'), ymd_hms('2021-01-01 11:00:00'), 3600)
+breaks <- seq(ymd_hms('2020-12-31 12:00:00'), ymd_hms('2021-01-01 12:00:00'), 3600)
+#labels <- tz_import$Name[2:nrow(tz_import)]
+labels <- tz_import$Name
 
 tweets_per_hour <- data %>% mutate(d = floor_date(created_at, unit = '1 hour')) %>%
     group_by(d) %>%
     summarise(cnt = n()) %>% 
     filter(d >= ymd_hms('2020-12-31 12:00:00'), 
            d < ymd_hms('2021-01-01 12:00:00'), ) %>%
-    arrange(desc(d)) %>%
-    mutate(d = as.character(d), x = seq_along(d))
+    arrange(desc(d)) %>% # the later times correspond to most westerly regions # west to east
+    mutate(d = as.character(d), x = seq_along(d),
+           breaks = seq(ymd_hms('2021-01-01 11:00:00'), ymd_hms('2020-12-31 12:00:00'),
+                        -3600), # west to east
+           labels = tz_import$Name[2:nrow(tz_import)],
+           GMT_Offset = tz_import$GMT_Offset[2:nrow(tz_import)]) # west to east
 # SELECT FOR APP
 fig1 <- tweets_per_hour %>%
     ggplot(aes(x = x, y = cnt)) +
     geom_line() +
-    annotate('text', x = 7, y = tweets_per_hour$cnt[7] + 250, label = labels[7]) +
-    annotate('text', x = 12, y = tweets_per_hour$cnt[12] + 250, label = labels[12]) +
-    annotate('text', x = 20, y = tweets_per_hour$cnt[20] + 250, label = labels[20]) +
-    scale_x_continuous(breaks = seq(2,24,2), labels = tz_import$GMT_Offset[seq(3,25,2)],
+    annotate('text', x = 7, y = tweets_per_hour$cnt[7] + 250, label = tweets_per_hour$labels[7]) +
+    annotate('text', x = 12, y = tweets_per_hour$cnt[12] + 250, label = tweets_per_hour$labels[12]) +
+    annotate('text', x = 20, y = tweets_per_hour$cnt[20] + 250, label = tweets_per_hour$labels[20]) +
+    scale_x_continuous(breaks = seq(2,24,2), labels = tweets_per_hour$GMT_Offset[seq(2,24,2)],
                      #sec.axis = sec_axis(function(.) ., 
                      #                    #breaks = seq(1,24),
                      #                    breaks = c(7,12,20),
@@ -115,14 +121,15 @@ fig1 <- tweets_per_hour %>%
           axis.text.x.bottom  = element_text(angle = 45, hjust = 1),
           panel.grid.minor.x = element_blank(),
           panel.grid.major.x = element_blank())
+fig1
 
 #htmltools::save_html(ggplotly(fig1), file = "tweets_per_hour.html")
 htmlwidgets::saveWidget(ggplotly(fig1), 
-                        file = file.path(getwd(),'www',"tweets_per_hour.html"), 
+                        file = file.path(getwd(),'www',"resolutions__tweets_per_hour.html"), 
                         selfcontained = FALSE,
                         libdir = file.path(getwd(),'www'))
 
-#htmlwidgets::saveWidget(ggplotly(fig1), file = "tweets_per_hour.html", selfcontained = TRUE)
+#htmlwidgets::saveWidget(ggplotly(fig1), file = "tweets_per_hour.html", selfcontained = TR
 
 # Most used emojis ---------
 
@@ -132,7 +139,7 @@ htmlwidgets::saveWidget(ggplotly(fig1),
 tagged_emoji_data <- emoji_data %>% mutate(tagged_desc = str_c('jaugur_',
                                       str_replace_all(description,'\\s+','_')))
 
-data <- readr::read_rds('df_with_emojis_replaced.rds')
+data <- readr::read_rds(file.path('nyresolutions','df_with_emojis_replaced.rds'))
 
 common_emojis <- data$txt_with_emojis_replaced %>%
     str_extract_all('jaugur_\\w+') %>% # this also removes the ":_medium_skin_tone" part of the desc
@@ -147,7 +154,8 @@ common_emojis <- data$txt_with_emojis_replaced %>%
 top_emojis <- common_emojis %>%
     slice(1:10) %>%
     mutate(url = map_chr(emoji, slowly(~emoji_to_link(.x), rate_delay(0.2))),
-           label = link_to_img(url))
+           #label = link_to_img(url)
+           )
 
 offset <- max(top_emojis$tot) / 15 # 5% of the largest value
 
