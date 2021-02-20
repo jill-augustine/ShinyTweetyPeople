@@ -48,17 +48,18 @@ link_to_img <- function(x, size = 25) {
 
 # 3.1) tweets per hour (31st Dec - 1st Jan) ----
 # prepping data
-nyr_tweets_per_hour <- nyresolution_data %>% mutate(hr = round_date(created_at, unit = '1 hour')) %>%
+nyr_tweets_per_hour <- nyresolution_data %>% 
+    mutate(hr = round_date(created_at, unit = '1 hour')) %>%
     group_by(hr) %>%
     summarise(cnt = n()) %>% 
-    filter(hr >= ymd_hms('2020-12-31 12:00:00'), 
-           hr < ymd_hms('2021-01-01 12:00:00'), ) %>%
+    filter(hr >= ymd_hms('2020-12-31 11:30:00'), 
+           hr < ymd_hms('2021-01-01 11:30:00'), ) %>%
     arrange(desc(hr)) %>% # the later times correspond to most westerly regions # west to east
     mutate(hr = as.character(hr), x = seq_along(hr),
            breaks = seq(ymd_hms('2021-01-01 11:00:00'), ymd_hms('2020-12-31 12:00:00'),
                         -3600), # west to east
            labels = tz_import$Name[2:nrow(tz_import)],
-           GMT_Offset = tz_import$GMT_Offset[2:nrow(tz_import)]) # west to east
+           UTC_Offset = tz_import$UTC_Offset[2:nrow(tz_import)])# west to east 
 
 # prepping for figure
 ax <- list(
@@ -69,7 +70,7 @@ ax <- list(
     linecolor = toRGB('grey30'),
     linewidth = 4
 )
-xticktext <- paste0(nyr_tweets_per_hour$GMT_Offset, '</b>')
+xticktext <- nyr_tweets_per_hour$UTC_Offset
 annotationtext <- paste0('<b>',nyr_tweets_per_hour$labels, '</b>')
 
 # creating figure
@@ -77,33 +78,34 @@ fig_nyr_tweets_per_hour <- nyr_tweets_per_hour %>%
     plot_ly() %>%
     add_trace(x = ~x, y = ~cnt, type = 'scatter', mode = 'markers+lines', 
               customdata = ~labels,
-              text = ~GMT_Offset,
+              text = ~UTC_Offset,
               hovertemplate = '<b>%{customdata}</b> | %{text}<br>%{y} Tweets<extra></extra>',
-              line = list(width = 4),
-              marker = list(size = 8)
+              line = list(width = 4, color = '2b8cbe'),
+              marker = list(size = 8, color = 'a6bddb', 
+                            line = list(color = '2b8cbe', width = 3))
               ) %>%
-    add_annotations(x = c(7, 12, 19),
+    add_annotations(x = ~x[c(7, 12, 19)],
                     y = ~cnt[c(7, 12, 19)] + 150,
                     text = annotationtext[c(7, 12, 19)],
                     xref = "x",
                     yref = "y", 
                     showarrow = FALSE,
                     font = list(color = 'grey30')
-                    ) %>%
-    # frame layout
+    ) %>%
     layout(xaxis = ax, yaxis = ax) %>%
     # title layout
-    layout(title = list(text = '<b>Peaks in tweets per hour as regions passed midnight</b><br>',
-                        font = list(size = 20, color = 'grey30')
-                        )
-           ) %>%
+    #layout(title = list(text = '<b>Peaks in tweets per hour as regions passed midnight</b><br>',
+    #                    font = list(size = 16, color = 'grey30')
+    #                    ),
+    #       margin = list(t = 60)
+    #       ) %>%
     # x and y axis layout
     layout(xaxis = list(title = list(text = '<b>Time Region</b>', 
                                      standoff = 10, 
                                      font = list(color = 'grey30')
                                      ), 
-                        tickvals = seq(2,24, 2),
-                        ticktext = xticktext[seq(2,24, 2)],
+                        tickvals = ~x[seq(2,24,2)],
+                        ticktext = ~UTC_Offset[seq(2,24,2)],
                         tickfont = list(color = 'grey30'),
                         range = c(0,26),
                         showgrid = TRUE
@@ -112,131 +114,156 @@ fig_nyr_tweets_per_hour <- nyr_tweets_per_hour %>%
                                      standoff = 10,
                                      font = list(color = 'grey30')
                                     ),
+                        #range = c(0, 5000),
                         tickfont = list(color = 'grey30')
                                        )
-)
+        ) %>%
+    layout(shapes = list(type = 'line', x0 = 24, x1 = 24, y0 = 0, y1 = 4500,
+                         opacity = 0.8, 
+                         line = list(dash = 'dash')
+                         ))
     
-fig_nyr_tweets_per_hour
+#fig_nyr_tweets_per_hour
 
 # 3.2) top emojis  ----
 # prepping data
 
-emoji_freq_table <- nyresolution_data$text_with_emojis_replaced %>%
-    str_extract_all('jaugur_\\w+') %>% # this also removes the ":_medium_skin_tone" part of the desc
+nyr_emoji_freq_table <- nyresolution_data$text_with_emojis_replaced %>%
+    str_extract_all('jaugur_[\\w-]+') %>% # this also removes the ":_medium_skin_tone" part of the desc but keeps the "-eyes" in "heart-eyes"
     unlist() %>% str_remove_all('jaugur_') %>% str_replace_all('_',' ') %>%
     as_tibble() %>% group_by(value) %>%
     summarise(tot = n()) %>% # creating a frequency table
     arrange(desc(tot)) %>% 
     # adding the emoji itself
     left_join(select(emoji_data, emoji, description, url), by = c('value' = 'description'))  %>%
-    distinct(value, .keep_all = T) # removing duplicates due to left join where two emojis have the same desc
-
-# prepping for figure
-ax <- list(
-    zeroline = FALSE,
-    showline = TRUE,
-    #mirror = "ticks",
-    showgrid = FALSE,
-    linecolor = toRGB('grey30'),
-    linewidth = 4
-)
-xticktext <- NULL
-annotationtext <- NULL
+    distinct(value, .keep_all = T) %>% # removing duplicates due to left join where two emojis have the same desc
+    mutate(value = str_replace_all(value, '^flag$', 'country flag'))
 
 # creating figure (this should actually be done within server or with shiny functions to allow for reactivity)
 
-emoji_from <- 1
-emoji_to <- 3
-emoji_freq_subset <- emoji_freq_table %>% .[emoji_from:emoji_to,] %>%
-    mutate(value = factor(value, levels = value),
-           x = seq_along(value))
+#emoji_from <- 10
+#emoji_to <- 20
+#emoji_freq_subset <- nyr_emoji_freq_table %>% 
+#    mutate(rank = seq_along(emoji)) %>%
+#    .[emoji_from:emoji_to,] %>%
+#    mutate(value = factor(value, levels = value))
 
-emojis_to_plot <- vector(mode = 'list', length = nrow(emoji_freq_subset))
-
-for (i in seq_len(nrow(emoji_freq_subset))) {
-    emojis_to_plot[[i]] <- list(source = emoji_freq_subset$url[i],
-                                xref = "paper",
-                                yref = "paper",
-                                x= 0,
-                                y= 1,
-                                #sizex = 0.2,
-                                #sizey = 0.2#,
-                                #xref = "x",
-                                #yref = "y",
-                                #x= emoji_freq_subset$x[i],
-                                #y= emoji_freq_subset$tot[i] + 1000#,
-                                #sizex = 0.2,
-                                #sizey = 0.2#,
-                                #opacity = 0.8
+plot_emoji_chart <- function(df) {
+    ax <- list(
+        zeroline = FALSE,
+        showline = TRUE,
+        mirror = FALSE, "ticks",
+        showgrid = FALSE,
+        linecolor = toRGB('grey30'),
+        linewidth = 4
     )
+    df %>% mutate(emoji = str_replace_na(emoji, '')) %>%
+        plot_ly() %>%
+        add_trace(x = ~rank, y = ~tot, type = "bar", visible = TRUE,
+                  text = ~emoji,
+                  textposition = "outside",
+                  textfont = list(size = 18),
+                  customdata = ~value,  
+                  hovertemplate = paste0('Rank: %{x}<br>',
+                                         '<b>%{customdata}</b><br>',
+                                         'Used %{y} Times<extra></extra>'),
+                  marker = list(color = '99d8c9',
+                                line = list(width = 2, color = '2ca25f'))) %>%
+        # frame & hover layout
+        layout(xaxis = ax, yaxis = ax,
+               hoverlabel = list(font = list(size = 14))) %>%
+        # title layout
+        #layout(title = list(text = '<b>Most common emojis</b><br>',
+        #                    font = list(size = 20, color = 'grey30')
+        #)
+        #) %>%
+        # x and y axis layout
+        layout(xaxis = list(title = list(font = list(color = 'grey30')), 
+                            tickvals = ~rank,
+                            showticklabels = FALSE,
+                            tickfont = list(color = 'grey30'),
+                            tickangle = 60,
+                            range = c(df$rank - 1, df$rank + 1)
+        ),
+        yaxis = list(title = list(text = '<b>Times Used</b>', 
+                                  standoff = 10,
+                                  font = list(color = 'grey30')),
+                     tickfont = list(color = 'grey30'),
+                     range = c(0,max(df$tot) * 1.1)
+        )
+        ) %>%
+        layout(annotations = list(text = '<i>Out of a total 165,719 Tweets</i>',
+                                  showarrow = FALSE,
+                                  x = max(df$rank) + 0.5, xanchor = "right",
+                                  y = 0, yanchor = "top", yshift = -6)
+               )
 }
 
-test_layout1 <- list(#source = file.path('emoji13_1',str_split(emoji_freq_subset$url[1], '/') %>% unlist() %>% last()),
-    #source =  "https://emojipedia-us.s3.dualstack.us-west-1.amazonaws.com/thumbs/120/apple/271/face-with-tears-of-joy_1f602.png",
-    source = "https://images.plot.ly/language-icons/api-home/r-logo.png",
-    xref = "x",
-    yref = "y",
-    x = emoji_freq_subset$x[1],
-    xanchor = 'center',
-    y= emoji_freq_subset$tot[1],
-    yanchor = "bottom",
-    sizex = 0.2,
-    sizey = emoji_freq_subset$tot[i],
-    opacity = 0.8)
+#plot_emoji_chart(emoji_freq_subset)
 
-test_layout1_1 <- list(#source = "emoji13_1/face-with-tears-of-joy_1f602.png",
-    #source = "https://images.plot.ly/language-icons/api-home/python-logo.png",
-    source = "https://emojipedia-us.s3.dualstack.us-west-1.amazonaws.com/thumbs/120/apple/271/grinning-face_1f600.png",
-                     xref = "x",
-                     yref = "paper",
-                     x= 1,
-                     y= 1,
-                     sizex = 0.2,
-                     sizey = 0.2,
-                     opacity = 0.8
-)
-test_layout2 <- list(source = "https://images.plot.ly/language-icons/api-home/python-logo.png",
-                     xref = "paper",
-                     yref = "paper",
-                     x= 0,
-                     y= 1,
-                     sizex = 0.2,
-                     sizey = 0.2,
-                     opacity = 0.8
-)
+# 3.2) top hashtags  ----
+# prepping data
 
-emoji_freq_subset %>%
-    plot_ly() %>%
-    add_trace(x = ~x, y = ~tot, type = "bar", visible = TRUE) %>%
-    #layout(images = emojis_to_plot)
-    #layout(images = list(test_layout1_1)) #%>%
-    #layout(images = test_layout2) %>%
-    # frame layout
-    layout(xaxis = ax, yaxis = ax) %>%
-    # title layout
-    layout(title = list(text = '<b>Peaks in tweets per hour as regions passed midnight</b><br>',
-                        font = list(size = 20, color = 'grey30')
+nyr_hashtag_freq_table <- nyresolution_data$text %>% #head(10) %>%
+    str_extract_all('#\\w+') %>%
+    unlist() %>% str_to_lower() %>% 
+    as_tibble() %>% group_by(value) %>%
+    summarise(tot = n()) %>% # creating a frequency table
+    arrange(desc(tot))
+
+# creating figure (this should actually be done within server or with shiny functions to allow for reactivity)
+
+#hashtag_from <- 1
+#hashtag_to <- 10
+#hashtag_freq_subset <- nyr_hashtag_freq_table %>% .[hashtag_from:hashtag_to,] %>%
+#    mutate(value = factor(value, levels = value),
+#           rank = seq_along(value))
+
+plot_hashtag_chart <- function(df) {
+    ax <- list(
+        zeroline = FALSE,
+        showline = TRUE,
+        mirror = FALSE, "ticks",
+        showgrid = FALSE,
+        linecolor = toRGB('grey30'),
+        linewidth = 4
     )
-    ) %>%
-    # x and y axis layout
-    layout(xaxis = list(title = list(text = '<b>Time Region</b>', 
-                                     standoff = 10, 
-                                     font = list(color = 'grey30')
-    ), 
-    tickvals = ~x  ,
-    ticktext = ~value,
-    tickfont = list(color = 'grey30'),
-    #range = c(0,26),
-    showgrid = TRUE
-    ),
-    yaxis = list(title = list(text = '<b>Tweets per Hour</b>', 
-                              standoff = 10,
-                              font = list(color = 'grey30')
-    ),
-    tickfont = list(color = 'grey30'),
-    range = c(0,max(emoji_freq_subset$tot) +1000)
-    )
-    )
+    df %>% 
+        plot_ly() %>%
+        add_trace(x = ~rank, y = ~tot, type = "bar", visible = TRUE,
+                  customdata = ~rank,
+                  hovertemplate = paste0('Rank: %{customdata}<br>',
+                                         '<b>%{x}</b><br>',
+                                         'Used %{y} Times<extra></extra>'),
+                  marker = list(color = 'bcbddc',
+                                line = list(width = 2, color = '756bb1'))) %>%
+        # frame & hover layout
+        layout(xaxis = ax, yaxis = ax,
+               hoverlabel = list(font = list(size = 14))) %>%
+        # title layout
+        # layout(title = list(text = '<b>Most common hashtags</b><br>',
+        #                    font = list(size = 20, color = 'grey30')
+        # )
+        # ) %>%
+        # x and y axis layout
+        layout(xaxis = list(title = list(font = list(color = 'grey30')), 
+                            tickvals = ~rank,
+                            ticktext = ~value,
+                            tickfont = list(color = 'grey30'),
+                            tickangle = 60,
+                            range = c(0, nrow(df)+1)
+        ),
+        yaxis = list(title = list(text = '<b>Times Used</b>', 
+                                  standoff = 10,
+                                  font = list(color = 'grey30')),
+                     tickfont = list(color = 'grey30')
+        )
+        ) %>%
+        layout(annotations = list(text = '<i>Out of a total 165,719 Tweets</i>',
+                                  showarrow = FALSE,
+                                  x = max(df$rank) + 0.5, xanchor = "right",
+                                  y = 0, yanchor = "top", yshift = -6)
+        )
+}
 
-
-
+#plot_hashtag_chart(hashtag_freq_subset)
