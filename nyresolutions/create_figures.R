@@ -93,13 +93,6 @@ fig_nyr_tweets_per_hour <- nyr_tweets_per_hour %>%
                     font = list(color = 'grey30')
     ) %>%
     layout(xaxis = ax, yaxis = ax) %>%
-    # title layout
-    #layout(title = list(text = '<b>Peaks in tweets per hour as regions passed midnight</b><br>',
-    #                    font = list(size = 16, color = 'grey30')
-    #                    ),
-    #       margin = list(t = 60)
-    #       ) %>%
-    # x and y axis layout
     layout(xaxis = list(title = list(text = '<b>Time Region</b>', 
                                      standoff = 10, 
                                      font = list(color = 'grey30')
@@ -114,7 +107,6 @@ fig_nyr_tweets_per_hour <- nyr_tweets_per_hour %>%
                                      standoff = 10,
                                      font = list(color = 'grey30')
                                     ),
-                        #range = c(0, 5000),
                         tickfont = list(color = 'grey30')
                                        )
         ) %>%
@@ -122,8 +114,6 @@ fig_nyr_tweets_per_hour <- nyr_tweets_per_hour %>%
                          opacity = 0.8, 
                          line = list(dash = 'dash')
                          ))
-    
-#fig_nyr_tweets_per_hour
 
 # 3.2) top emojis  ----
 # prepping data
@@ -132,21 +122,13 @@ nyr_emoji_freq_table <- nyresolution_data$text_with_emojis_replaced %>%
     str_extract_all('jaugur_[\\w-]+') %>% # this also removes the ":_medium_skin_tone" part of the desc but keeps the "-eyes" in "heart-eyes"
     unlist() %>% str_remove_all('jaugur_') %>% str_replace_all('_',' ') %>%
     as_tibble() %>% group_by(value) %>%
-    summarise(tot = n()) %>% # creating a frequency table
+    summarise(tot = n()) %>%
     arrange(desc(tot)) %>% 
     # adding the emoji itself
     left_join(select(emoji_data, emoji, description, url), by = c('value' = 'description'))  %>%
     distinct(value, .keep_all = T) %>% # removing duplicates due to left join where two emojis have the same desc
     mutate(value = str_replace_all(value, '^flag$', 'country flag'))
 
-# creating figure (this should actually be done within server or with shiny functions to allow for reactivity)
-
-#emoji_from <- 10
-#emoji_to <- 20
-#emoji_freq_subset <- nyr_emoji_freq_table %>% 
-#    mutate(rank = seq_along(emoji)) %>%
-#    .[emoji_from:emoji_to,] %>%
-#    mutate(value = factor(value, levels = value))
 
 plot_emoji_chart <- function(df) {
     ax <- list(
@@ -172,12 +154,6 @@ plot_emoji_chart <- function(df) {
         # frame & hover layout
         layout(xaxis = ax, yaxis = ax,
                hoverlabel = list(font = list(size = 14))) %>%
-        # title layout
-        #layout(title = list(text = '<b>Most common emojis</b><br>',
-        #                    font = list(size = 20, color = 'grey30')
-        #)
-        #) %>%
-        # x and y axis layout
         layout(xaxis = list(title = list(font = list(color = 'grey30')), 
                             tickvals = ~rank,
                             showticklabels = FALSE,
@@ -199,25 +175,16 @@ plot_emoji_chart <- function(df) {
                )
 }
 
-#plot_emoji_chart(emoji_freq_subset)
-
 # 3.2) top hashtags  ----
 # prepping data
 
-nyr_hashtag_freq_table <- nyresolution_data$text %>% #head(10) %>%
+nyr_hashtag_freq_table <- nyresolution_data$text %>% 
     str_extract_all('#\\w+') %>%
     unlist() %>% str_to_lower() %>% 
     as_tibble() %>% group_by(value) %>%
-    summarise(tot = n()) %>% # creating a frequency table
+    summarise(tot = n()) %>% 
     arrange(desc(tot))
 
-# creating figure (this should actually be done within server or with shiny functions to allow for reactivity)
-
-#hashtag_from <- 1
-#hashtag_to <- 10
-#hashtag_freq_subset <- nyr_hashtag_freq_table %>% .[hashtag_from:hashtag_to,] %>%
-#    mutate(value = factor(value, levels = value),
-#           rank = seq_along(value))
 
 plot_hashtag_chart <- function(df) {
     ax <- list(
@@ -266,36 +233,16 @@ plot_hashtag_chart <- function(df) {
         )
 }
 
-#plot_hashtag_chart(hashtag_freq_subset)
-
 # 3.3) Pairs of emojis -----
-# one tag followed by zero or more tags which may or may not be preceded by a space
-emoji_chain_pattern <- '(jaugur_[\\w-]+)(\\s*(jaugur_[\\w-]+))*'
-x <- nyresolution_data %>% .[117,] %>% 
-    mutate(emoji_chain = str_extract(text_with_emojis_replaced, emoji_chain_pattern)) %>%
-    select(text, text_with_emojis_replaced, emoji_chain)
-
-cat(x$text)
-x$emoji_chain
-
-eg <- "jaugur_smiling_face_with_hearts jaugur_rolling_on_the_floor_laughing jaugur_grinning_face_with_sweat"
-eg2 <- "jaugur_smiling_face_with_hearts jaugur_rolling_on_the_floor_laughing something else jaugur_grinning_face_with_sweat jaugur_grinning_face_with_sweat"
-str_extract(eg, emoji_chain_pattern) # finds all
-str_extract(eg2, emoji_chain_pattern) # finds first two
-str_extract_all(eg, emoji_chain_pattern) # finds all in vec of length 1
-str_extract_all(eg2, emoji_chain_pattern) # finds all in vec of length 2
-
-## Trying joint emojis only
 # one tag followed by one or more tags which may or may not be preceded by a space
-emoji_chain_pattern2 <- '(jaugur_[\\w-]+)(\\s*(jaugur_[\\w-]+))+'
+emoji_chain_pattern <- '(jaugur_[\\w-]+)(\\s*(jaugur_[\\w-]+))+'
 
-str_extract(eg, emoji_chain_pattern2) # finds all
-str_extract(eg2, emoji_chain_pattern2) # finds first two
-str_extract_all(eg, emoji_chain_pattern2) # finds all in list of length 1 and vec of length 1
-str_extract_all(eg2, emoji_chain_pattern2) # finds all in list of length 1 and vec of length 2
-
+#' @param string A string containing 2+ non-space sequences separated by a space
+#' @param presplit If `TRUE`, assumes string has already been through `str_split(string, ' ')`
+#' @return 
+#' A character vector of length L where L is the number of pairs found.
+#' Each string is two non-space sequences separated by a space. 
 return_pairs <- function(string, presplit = FALSE) {
-    # if presplit then string has already been through str_split(string, ' ')
     if (!presplit) {
         splitted <- str_split(string, ' ')[[1]]
     } else {
@@ -316,67 +263,212 @@ return_pairs <- function(string, presplit = FALSE) {
     unlist(res)
 }
 
-x <- nyresolution_data %>% #.[1:1000,] %>% 
-    select(ID, text_with_emojis_replaced) %>%
-    mutate(emoji_chain = str_extract_all(text_with_emojis_replaced, emoji_chain_pattern2)) %>% # makes a vector per row
-    tidyr::unnest(cols = emoji_chain) %>% # unnests to one string per row with ID and text_with_emojis_replaced columns duplicated
-    
-    mutate(pre_split = str_split(emoji_chain, ' ')) %>%# prep for return_pairs
-    mutate(pair_ = map(pre_split, return_pairs, presplit = TRUE)) %>% # makes pair_ which is one char vector per row
+emoji_pairs <- nyresolution_data %>% select(ID, text_with_emojis_replaced) %>%
+    # emoji_chain a character vector per row
+    mutate(emoji_chain = str_extract_all(text_with_emojis_replaced, emoji_chain_pattern)) %>% 
+    # unnest to one string per row with ID and text_with_emojis_replaced values duplicated
+    tidyr::unnest(cols = emoji_chain) %>% 
+    # pre_split is a character vector per row
+    mutate(pre_split = str_split(emoji_chain, ' ')) %>%
+    # pair_ is a character vector per row
+    mutate(pair_ = map(pre_split, return_pairs, presplit = TRUE)) %>% 
     select(ID, pair_) %>%
-    tidyr::unnest(cols = pair_) %>% # unnests to one string per row
+    # unnest to one pair-string per row with ID duplicated
+    tidyr::unnest(cols = pair_) %>% 
     mutate(vec_of_pair = str_split(pair_, ' '),
-             emoji1 = map_chr(vec_of_pair, function(x) x[1]),
-             emoji2 = map_chr(vec_of_pair, function(x) x[2]),
+             emoji1 = map_chr(vec_of_pair, function(x) x[1]), # alternative: str_extract(pair_,'^jaugur_[\\w-]+')
+             emoji2 = map_chr(vec_of_pair, function(x) x[2]), # alternative: str_extract(pair_,'jaugur_[\\w-]+$')
              emojis_sorted = map2_chr(emoji1, emoji2, function(.x, .y) {
                      paste(str_sort(c(.x, .y)), collapse = ' ')
                  })
              )
 
-
 # based on sorted, the two laughing combos together are in 2nd place
-x %>% filter(emoji1 != emoji2) %>% 
+sorted_emoji_pairs <- emoji_pairs %>% filter(emoji1 != emoji2) %>% 
     group_by(emojis_sorted) %>%
     summarise(tot = n()) %>%
-    arrange(desc(tot)) 
+    arrange(desc(tot)) %>%
+    rename(pair_ = emojis_sorted) # columns = pair_ and tot
 
 # based on order, the two laughing ones are in place 3 and 4
-x %>% filter(emoji1 != emoji2) %>% 
+unsorted_emoji_pairs <- emoji_pairs %>% filter(emoji1 != emoji2) %>% 
     group_by(pair_) %>%
     summarise(tot = n()) %>%
-    arrange(desc(tot)) 
+    arrange(desc(tot)) # columns = pair_ and tot
 
 # see which emoji was most commonly used with itself
-x %>% filter(emoji1 == emoji2) %>%
-    group_by(emoji1) %>%
+twin_emoji_pairs <- emoji_pairs %>% filter(emoji1 == emoji2) %>%
+    group_by(pair_) %>%
     summarise(tot = n()) %>%
-    arrange(desc(tot)) 
+    arrange(desc(tot)) # columns = pair_ and tot
 
-#y <- x$pre_split[[1]]
-#y <- c(y,y)
-#y
-#z <- tibble(from_ = 1:3, to_ = from_ + 1)
+plot_sankey <- function(data, from_ = NULL, to_ = NULL) {
+    if (is.null(from_)) from_ <- 1
+    if (is.null(to_)) to_ <- nrow(data)
+    d <- data[from_:to_, ]
+    unique_descriptions <- unique(unlist(str_split(d$pair_, ' ')))
+    # lookup table
+    source_lookup <- seq_along(unique_descriptions) - 1
+    names(source_lookup) <- unique_descriptions
+    # lookup table
+    target_lookup <- seq_along(unique_descriptions) + length(unique_descriptions) - 1
+    names(target_lookup) <- unique_descriptions
+    # joining to emojis and untagged desc
+    unique_emoji_data <- tibble(tagged_desc = unique_descriptions) %>% 
+        left_join(select(emoji_data, tagged_desc, description, emoji), by = 'tagged_desc') %>%
+        # removing duplicates due to left join where two emojis have the same
+        distinct(tagged_desc, .keep_all = T) %>%
+        mutate(description = str_replace_all(description, '^flag$', 'country flag'))
+        
+    sankey_data <- d %>% 
+            mutate(emoji1 = str_extract(pair_,'^jaugur_[\\w-]+'),
+                   emoji2 = str_extract(pair_,'jaugur_[\\w-]+$'),
+                   source_ = map(emoji1, function(x) source_lookup[[x]]) %>% unlist(),
+                   target_ = map(emoji2, function(x) target_lookup[[x]]) %>% unlist(),
+            )
+    # create fig
+    fig <- plot_ly(
+        type = "sankey",
+        orientation = "h",
+        valueformat = ".0f",
+        node = list(
+            label = rep(unique_emoji_data$emoji, 2),
+            customdata = rep(unique_emoji_data$description, 2),
+            hovertemplate = '%{customdata}',
+            color = rep('blue', length(unique_emoji_data$emoji) *2),
+            pad = 15,
+            thickness = 10,
+            line = list(
+                color = "black",
+                width = 0.5
+            )
+        ),
+        link = list(
+            source = sankey_data$source_,
+            target = sankey_data$target_,
+            value =  sankey_data$tot,
+            hovertemplate = '"%{source.customdata}" & "%{target.customdata}"'
+        )
+    ) %>% 
+        # add layout
+        layout(
+        #title = "Basic Sankey Diagram",
+        font = list(
+            size = 20
+        )
+    )
+    
+    fig
+    
+}
 
-tic()
-x %>% mutate(emoji_pairs = return_pairs(pre_split, presplit = TRUE))
-toc()
+twin_emoji_pairs %>% plot_sankey(to_ = 5)
+unsorted_emoji_pairs %>% plot_sankey(to_ = 15)
+sorted_emoji_pairs %>% plot_sankey(to_ = 30)
 
-str_split(x$emoji_chain, ' ') %>% map(length) %>% unlist() %>% min()
+# no filtering if emoji1 and 2 are the same
+emoji_pairs %>% group_by(pair_) %>%
+    summarise(tot = n()) %>%
+    arrange(desc(tot)) %>%
+    plot_sankey(to_ = 15)
 
-tibble(eg2) %>% 
-    mutate(one = str_extract_all(eg2, emoji_chain_pattern2)) %>% 
-    tidyr::unnest(cols = one) #unnest_regex(output = 'chains', input = 'eg2', pattern = emoji_chain_pattern2)
+en <- 15
+u_list <- sorted_emoji_pairs %>% head(en) %>% pull(emojis_sorted) %>% 
+    str_split(' ') %>% unlist() %>%
+    unique()
 
-emoji_pair_pattern <- '(jaugur_[\\w-]+)\\s*(jaugur_[\\w-]+)'
-str_extract(eg, emoji_pair_pattern) # first two
-str_extract_all(eg, emoji_pair_pattern) # first two
+emoji_sankey_lookup_src <- seq_along(u_list) - 1
+names(emoji_sankey_lookup_src) <- u_list
 
-one <- str_extract(eg, emoji_chain_pattern2) # finds all
-one %>% str_split(' ') %>% map(length)
+emoji_sankey_lookup_trg <- seq_along(u_list) + length(u_list) - 1
+names(emoji_sankey_lookup_trg) <- u_list
 
-# might have to make function at some point which takes a vectors not list and outputs vector
+u_emoji_data <- tibble(tagged_desc = u_list) %>% 
+    left_join(select(emoji_data, tagged_desc, description, emoji), by = 'tagged_desc') %>%
+    distinct(tagged_desc, .keep_all = T) %>% # removing duplicates due to left join where two emojis have the same desc
+    mutate(value = str_replace_all(description, '^flag$', 'country flag'))
+    
+sankey_data <- sorted_emoji_pairs %>% head(en) %>% 
+    mutate(emoji1 = str_extract(emojis_sorted,'^jaugur_[\\w-]+'),
+             emoji2 = str_extract(emojis_sorted,'jaugur_[\\w-]+$'),
+             source_ = map(emoji1, function(x) emoji_sankey_lookup_src[[x]]) %>% unlist(),
+             target_ = map(emoji2, function(x) emoji_sankey_lookup_trg[[x]]) %>% unlist(),
+             )
 
-# data should be in the form of a data frame with the ID in one column and the string in another
-# if a tweet contained more than one set of emojis, the ID might be duplicated
+fig <- plot_ly(
+    type = "sankey",
+    orientation = "h",
+    valueformat = ".0f",
+    node = list(
+        label = rep(u_emoji_data$emoji, 2),
+        customdata = rep(u_emoji_data$description, 2),
+        hovertemplate = '%{customdata}',
+        color = rep('blue', length(u_emoji_data$emoji) *2),
+        pad = 15,
+        thickness = 10,
+        line = list(
+            color = "black",
+            width = 0.5
+        )
+    ),
+    link = list(
+        source = sankey_data$source_,
+        target = sankey_data$target_,
+        value =  sankey_data$tot,
+        hovertemplate = '"%{source.customdata}" & "%{target.customdata}"'
+    )
+)
+fig <- fig %>% layout(
+    #title = "Basic Sankey Diagram",
+    font = list(
+        size = 20
+    )
+)
 
+fig
 
+plot_sorted_emoji_pairs <- function(df) {
+    ax <- list(
+        zeroline = FALSE,
+        showline = TRUE,
+        mirror = FALSE, "ticks",
+        showgrid = FALSE,
+        linecolor = toRGB('grey30'),
+        linewidth = 4
+    )
+    df %>% mutate(emoji = str_replace_na(emoji, '')) %>%
+        plot_ly() %>%
+        add_trace(x = ~rank, y = ~tot, type = "bar", visible = TRUE,
+                  text = ~emoji,
+                  textposition = "outside",
+                  textfont = list(size = 18),
+                  customdata = ~value,  
+                  hovertemplate = paste0('Rank: %{x}<br>',
+                                         '<b>%{customdata}</b><br>',
+                                         'Used %{y} Times<extra></extra>'),
+                  marker = list(color = '99d8c9',
+                                line = list(width = 2, color = '2ca25f'))) %>%
+        # frame & hover layout
+        layout(xaxis = ax, yaxis = ax,
+               hoverlabel = list(font = list(size = 14))) %>%
+        # title layout
+        layout(xaxis = list(title = list(font = list(color = 'grey30')), 
+                            tickvals = ~rank,
+                            showticklabels = FALSE,
+                            tickfont = list(color = 'grey30'),
+                            tickangle = 60,
+                            range = c(df$rank - 1, df$rank + 1)
+        ),
+        yaxis = list(title = list(text = '<b>Times Used</b>', 
+                                  standoff = 10,
+                                  font = list(color = 'grey30')),
+                     tickfont = list(color = 'grey30'),
+                     range = c(0,max(df$tot) * 1.1)
+        )
+        ) %>%
+        layout(annotations = list(text = '<i>Out of a total 165,719 Tweets</i>',
+                                  showarrow = FALSE,
+                                  x = max(df$rank) + 0.5, xanchor = "right",
+                                  y = 0, yanchor = "top", yshift = -6)
+        )
+}
