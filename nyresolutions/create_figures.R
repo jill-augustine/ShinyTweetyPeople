@@ -267,3 +267,116 @@ plot_hashtag_chart <- function(df) {
 }
 
 #plot_hashtag_chart(hashtag_freq_subset)
+
+# 3.3) Pairs of emojis -----
+# one tag followed by zero or more tags which may or may not be preceded by a space
+emoji_chain_pattern <- '(jaugur_[\\w-]+)(\\s*(jaugur_[\\w-]+))*'
+x <- nyresolution_data %>% .[117,] %>% 
+    mutate(emoji_chain = str_extract(text_with_emojis_replaced, emoji_chain_pattern)) %>%
+    select(text, text_with_emojis_replaced, emoji_chain)
+
+cat(x$text)
+x$emoji_chain
+
+eg <- "jaugur_smiling_face_with_hearts jaugur_rolling_on_the_floor_laughing jaugur_grinning_face_with_sweat"
+eg2 <- "jaugur_smiling_face_with_hearts jaugur_rolling_on_the_floor_laughing something else jaugur_grinning_face_with_sweat jaugur_grinning_face_with_sweat"
+str_extract(eg, emoji_chain_pattern) # finds all
+str_extract(eg2, emoji_chain_pattern) # finds first two
+str_extract_all(eg, emoji_chain_pattern) # finds all in vec of length 1
+str_extract_all(eg2, emoji_chain_pattern) # finds all in vec of length 2
+
+## Trying joint emojis only
+# one tag followed by one or more tags which may or may not be preceded by a space
+emoji_chain_pattern2 <- '(jaugur_[\\w-]+)(\\s*(jaugur_[\\w-]+))+'
+
+str_extract(eg, emoji_chain_pattern2) # finds all
+str_extract(eg2, emoji_chain_pattern2) # finds first two
+str_extract_all(eg, emoji_chain_pattern2) # finds all in list of length 1 and vec of length 1
+str_extract_all(eg2, emoji_chain_pattern2) # finds all in list of length 1 and vec of length 2
+
+return_pairs <- function(string, presplit = FALSE) {
+    # if presplit then string has already been through str_split(string, ' ')
+    if (!presplit) {
+        splitted <- str_split(string, ' ')[[1]]
+    } else {
+        splitted <- string
+    }
+    
+    if (length(splitted) < 2) {
+        rlang::abort('String must contain 2+ non-space sequences separated by a space.')
+    } else if (length(splitted) == 2) {
+        return(paste(splitted, collapse = ' '))
+    } else {
+        from_ <- 1:(length(splitted) - 1)
+        to_ <- from_ + 1
+        res <- purrr::map2(from_, to_,
+                    function(.x, .y) paste(splitted[.x:.y], collapse = ' ')
+        )
+    }
+    unlist(res)
+}
+
+x <- nyresolution_data %>% #.[1:1000,] %>% 
+    select(ID, text_with_emojis_replaced) %>%
+    mutate(emoji_chain = str_extract_all(text_with_emojis_replaced, emoji_chain_pattern2)) %>% # makes a vector per row
+    tidyr::unnest(cols = emoji_chain) %>% # unnests to one string per row with ID and text_with_emojis_replaced columns duplicated
+    
+    mutate(pre_split = str_split(emoji_chain, ' ')) %>%# prep for return_pairs
+    mutate(pair_ = map(pre_split, return_pairs, presplit = TRUE)) %>% # makes pair_ which is one char vector per row
+    select(ID, pair_) %>%
+    tidyr::unnest(cols = pair_) %>% # unnests to one string per row
+    mutate(vec_of_pair = str_split(pair_, ' '),
+             emoji1 = map_chr(vec_of_pair, function(x) x[1]),
+             emoji2 = map_chr(vec_of_pair, function(x) x[2]),
+             emojis_sorted = map2_chr(emoji1, emoji2, function(.x, .y) {
+                     paste(str_sort(c(.x, .y)), collapse = ' ')
+                 })
+             )
+
+
+# based on sorted, the two laughing combos together are in 2nd place
+x %>% filter(emoji1 != emoji2) %>% 
+    group_by(emojis_sorted) %>%
+    summarise(tot = n()) %>%
+    arrange(desc(tot)) 
+
+# based on order, the two laughing ones are in place 3 and 4
+x %>% filter(emoji1 != emoji2) %>% 
+    group_by(pair_) %>%
+    summarise(tot = n()) %>%
+    arrange(desc(tot)) 
+
+# see which emoji was most commonly used with itself
+x %>% filter(emoji1 == emoji2) %>%
+    group_by(emoji1) %>%
+    summarise(tot = n()) %>%
+    arrange(desc(tot)) 
+
+#y <- x$pre_split[[1]]
+#y <- c(y,y)
+#y
+#z <- tibble(from_ = 1:3, to_ = from_ + 1)
+
+tic()
+x %>% mutate(emoji_pairs = return_pairs(pre_split, presplit = TRUE))
+toc()
+
+str_split(x$emoji_chain, ' ') %>% map(length) %>% unlist() %>% min()
+
+tibble(eg2) %>% 
+    mutate(one = str_extract_all(eg2, emoji_chain_pattern2)) %>% 
+    tidyr::unnest(cols = one) #unnest_regex(output = 'chains', input = 'eg2', pattern = emoji_chain_pattern2)
+
+emoji_pair_pattern <- '(jaugur_[\\w-]+)\\s*(jaugur_[\\w-]+)'
+str_extract(eg, emoji_pair_pattern) # first two
+str_extract_all(eg, emoji_pair_pattern) # first two
+
+one <- str_extract(eg, emoji_chain_pattern2) # finds all
+one %>% str_split(' ') %>% map(length)
+
+# might have to make function at some point which takes a vectors not list and outputs vector
+
+# data should be in the form of a data frame with the ID in one column and the string in another
+# if a tweet contained more than one set of emojis, the ID might be duplicated
+
+

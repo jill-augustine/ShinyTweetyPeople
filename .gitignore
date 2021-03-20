@@ -1,3 +1,11 @@
+*.rds
+*.RProj
+.RData
+.Rhistory
+*.logs
+www/*.html
+
+www/font-awesome/*
 *.json
 *.png
 

@@ -46,7 +46,8 @@ emoji_data <- emoji_data_raw$notes %>%
 
 emoji_data <- bind_cols(emoji_data_raw, emoji_data) %>%
     # add the "jaugur_" tag to the description and remove the underscores from the desc
-    mutate(tagged_desc = str_c('jaugur_',str_replace_all(description,'\\s+','_')))
+    # adds a blank space at the end
+    mutate(tagged_desc = str_c('jaugur_',str_replace_all(description,'\\s+','_'), ' '))
 
 emojis <- emoji_data %>% pull(emoji)
 urls <- vector(mode = "character", length = nrow(emoji_data))
@@ -65,7 +66,6 @@ emoji_data %>% mutate(across(everything(), as.character)) %>%
     unlist()
 emoji_data %>% readr::write_tsv(file.path("emoji13-1","emojidata.tsv"))
 
-
 # saving emoji pngs to file
 emoji_filenames <- emoji_data$url %>% str_split('/') %>% map_chr(last)
 for (i in 1:nrow(emoji_data)) {
@@ -82,7 +82,7 @@ replies_pattern <- '^(@\\w+\\s*)+'
 tag_pattern <- '@\\w+'
 hashtag_pattern <- '#\\w+'
 
-txt_import <- readr::read_file(file.path('nyresolutions','20210103141011_tidy.json'))
+txt_import <- readr::read_file(file.path('nyresolutions_helperfiles','20210103141011_tidy.json'))
 df_import <- jsonlite::fromJSON(txt_import, simplifyVector = FALSE, simplifyDataFrame = TRUE, simplifyMatrix = FALSE) %>% as_tibble()
 
 data <- df_import %>% 
