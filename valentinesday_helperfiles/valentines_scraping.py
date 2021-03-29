@@ -1,4 +1,5 @@
 import os
+os.chdir('..')
 import json
 import time
 import requests
@@ -13,7 +14,6 @@ logger = logging.getLogger('ScrapingLogger')
 import pandas as pd
 import numpy as np
 import datetime as dt
-import copy
 
 # authorisation -------------------------------
 with open('bearer', 'r') as f:
@@ -29,8 +29,8 @@ search_tweets = '2/tweets/search/recent'
 #user_tweets = '2/users/{}/tweets'.format(user_id)
 
 params = {
-   'query' : '(new resolution) -is:retweet',
-   'tweet.fields' : 'conversation_id,created_at,entities,geo,id,lang,public_metrics,possibly_sensitive,source,text',
+   'query' : '(valentine OR valentines) lang:en -is:retweet',
+   'tweet.fields' : 'conversation_id,created_at,entities,geo,id,public_metrics,possibly_sensitive,source,text',
    'expansions' : 'geo.place_id',
    'max_results' : 100
 }
@@ -76,24 +76,9 @@ utc_time = pd.Timestamp.utcnow().strftime('%Y%m%d%H%M%S')
 fp = utc_time+'_data.json'
 with open(fp, 'w') as f:
    logger.debug('Saving data to {}'.format(fp))
-   json.dump(data, f, ensure_ascii=False)
+   f.writelines(str(data))
 
 fp = utc_time+'_all.json'
 with open(fp, 'w') as f:
    logger.debug('Saving data to {}'.format(fp))
-   json.dump(entire_history, f, ensure_ascii=False)
-
-tidy_json = [None for i in range(len(data))]
-for i in range(len(data)):
-   print(i) if (i % 10000) == 0 else None
-   d = {k : v for k, v in data[i].items() if k in 
-      ['created_at','source','possibly_sensitive','text','id']}
-   d.update(data[i]['public_metrics'])
-   tidy_json[i] = copy.deepcopy(d)
-
-fp = utc_time+'_tidy.json'
-with open(fp, 'w') as f:
-   logger.debug('Saving tidied data to {}'.format(fp))
-   json.dump(tidy_json, f, ensure_ascii=False, )
-
-json.dumps(tidy_json[0:3])
+   f.writelines(str(entire_history))

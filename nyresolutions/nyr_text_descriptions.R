@@ -1,17 +1,5 @@
 #library(shiny)
 
-social_links <- {'
-  <a href="https://github.com/jill-augustine" class="social-links__entry" target="_blank">
-  <i class="fa fa-github"></i>
-  </a>\t
-  <a href="https://in.linkedin.com/in/jillianaugustine" class="social-links__entry" target="_blank">
-  <i class="fa fa-linkedin"></i>
-  </a>\t
-  <a href="https://twitter.com/jill_codes" class="social-links__entry" target="_blank">
-  <i class="fa fa-twitter"></i>
-  </a>
-'}
-
 desc_nyr_the_data <- {'
 <div>
 <h2>Tweet Data</h2>
@@ -79,3 +67,20 @@ desc_nyr_rank_hashtags <- {'
 <p>Similarly to the emoji rank plot, for this plot I had to create a frequency table to count the number of hashtags in the text. Although the hashtags were easily identifiable, having over 27,000 different hashtags in the text means that continuously updating the figure based on the current values of the range selector would cause the app to freeze. I therefore decided to change the plotting from a <code>reactive()</code> element to an <code>eventReactive()</code> element that refreshes only upon clicking a button. In addition, I restricted the data to plot to only hashtags that were used at least 10 times. This reduced the maximum number of hashtags to plot by over 23,000.</p>
 </div>
 '}
+
+desc_nyr_emoji_combos <- {
+    list(one = {'
+    <div>
+    <p>I was interested in finding out which combinations (pairs) of emojis were most often used. To do this, I created <code>return_pairs()</code> to extract pairs of consecutive emojis from a character string. The first chart below shows how often different pairs of emojis used. The order of the two emojis in the pair was disregarded when creating the plots. This means that, for example 😂😭 and 😭😂 are considered the same combination.</p>
+    </div>'},
+    two = {'
+    <div>
+    <p>This chart excludes pairs of identical emojis.  For example, 🙂🙂. It shows that the most popular combination used was "crossed fingers" and "star". When looking at individual emojis, however, "face with tears of joy" was used overall more than four times more often than "crossed fingers". So why do common laughing emojis such as "face with tears of joy" and "rolling on the floor laughing" not show up as one of the the top paired emojis? This is because laughing emojis are often used in chain of identical emojis. These pairs are excludes from the chart below. </p>
+    </div>'},
+    three = {'
+    <div>
+    <p>When including pairs of identical emojis, we see that laughing emojis are used more often in emoji pairs than any other emoji.
+    </p>
+    </div>'}
+    )
+}
